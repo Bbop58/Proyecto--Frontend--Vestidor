@@ -7,6 +7,7 @@ import { CategoryService } from '../../../core/services/category.service';
 import { Product } from '../../../core/models/product.model';
 import { Category } from '../../../core/models/category.model';
 import { HasPermissionDirective } from '../../../core/directives/has-permission.directive';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-product-list',
@@ -100,5 +101,15 @@ export class ProductListComponent implements OnInit {
         this.errorMessage.set(err.error?.detail || `Error al ${action} producto`);
       }
     });
+  }
+
+  getImageUrl(url?: string | null): string {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/')) {
+      const base = environment.apiUrl.replace('/api/v1', '');
+      return `${base}${url}`;
+    }
+    return url;
   }
 }

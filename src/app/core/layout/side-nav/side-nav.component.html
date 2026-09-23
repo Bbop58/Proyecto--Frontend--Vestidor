@@ -1,39 +1,142 @@
-<aside class="side-nav-offcanvas glass-card" [class.open]="isOpen">
+<aside class="side-nav-offcanvas glass-card" [class.open]="isOpen" role="dialog" aria-label="Menú de Módulos">
+  <!-- ── Header del Menú ────────────────────────────────────────────────── -->
   <div class="side-nav-header">
-    <div class="nav-title">
-      <i class="bi bi-grid-fill text-primary"></i>
-      <span>Módulos de la App</span>
+    <div class="nav-title-box">
+      <div class="nav-title-badge">
+        <i class="bi bi-diagram-3-fill"></i>
+      </div>
+      <div>
+        <div class="nav-title">Capa Específica</div>
+        <div class="nav-subtitle">Módulos y Subsistemas</div>
+      </div>
     </div>
-    <button (click)="onClose()" class="btn-close-nav" title="Cerrar menú">
-      <i class="bi bi-x-lg"></i>
-    </button>
+    
+    <div class="nav-header-actions">
+      <button 
+        type="button" 
+        class="btn-nav-action" 
+        (click)="expandedPackages().size > 0 ? collapseAll() : expandAll()" 
+        [title]="expandedPackages().size > 0 ? 'Colapsar todas las carpetas' : 'Expandir todas las carpetas'"
+      >
+        <i class="bi" [ngClass]="expandedPackages().size > 0 ? 'bi-arrows-collapse' : 'bi-arrows-expand'"></i>
+      </button>
+
+      <button (click)="onClose()" class="btn-close-nav" title="Cerrar menú">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
   </div>
 
+  <!-- ── Buscador Rápido de Módulos ──────────────────────────────────────── -->
+  <div class="nav-search-container">
+    <div class="nav-search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Buscar módulo..."
+        class="nav-search-input"
+      />
+      @if (searchQuery()) {
+        <button class="btn-clear-search" (click)="searchQuery.set('')" title="Limpiar búsqueda">
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ── Contenedor de Paquetes / Submenús ───────────────────────────────── -->
   <div class="side-nav-content">
-    @if (visibleModules().length === 0) {
+    @if (visiblePackages().length === 0) {
       <div class="empty-nav">
-        <p>No tienes acceso a ningún módulo disponible.</p>
+        <i class="bi bi-search empty-icon"></i>
+        <p class="empty-title">Sin resultados</p>
+        <p class="empty-subtitle">
+          @if (searchQuery()) {
+            No se encontró ningún módulo que coincida con "{{ searchQuery() }}".
+          } @else {
+            No tienes permisos para acceder a módulos de esta capa.
+          }
+        </p>
       </div>
     } @else {
-      <ul class="nav-list">
-        @for (module of visibleModules(); track module.route) {
-          <li class="nav-item">
-            <a
-              [routerLink]="module.route"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: module.route === '/dashboard' }"
-              (click)="onModuleClick()"
-              class="nav-link"
+      <div class="packages-list">
+        @for (pkg of visiblePackages(); track pkg.id) {
+          <div 
+            class="package-group" 
+            [class.is-expanded]="isPackageExpanded(pkg.id)"
+            [class.is-active-group]="isPackageActive(pkg)"
+          >
+            <!-- Cabecera de la Carpeta / Paquete -->
+            <button
+              type="button"
+              class="package-header"
+              (click)="togglePackage(pkg.id, $event)"
+              [attr.aria-expanded]="isPackageExpanded(pkg.id)"
             >
-              <i class="bi" [ngClass]="module.icon"></i>
-              <span>{{ module.label }}</span>
-              @if (module.route === '/reservas' && pendingReservations() > 0) {
-                <span class="badge-pending">{{ pendingReservations() > 99 ? '99+' : pendingReservations() }}</span>
-              }
-            </a>
-          </li>
+              <div class="pkg-header-left">
+                <div class="pkg-icon-wrap" [class.active-icon]="isPackageActive(pkg)">
+                  <i class="bi" [ngClass]="pkg.icon"></i>
+                </div>
+                <div class="pkg-info">
+                  <span class="pkg-name">{{ pkg.name }}</span>
+                  <span class="pkg-meta">{{ pkg.modules.length }} módulos</span>
+                </div>
+              </div>
+
+              <div class="pkg-header-right">
+                <!-- Alerta de reservas pendientes en cabecera si está colapsado -->
+                @if (hasPackagePendingReservations(pkg.id) && !isPackageExpanded(pkg.id)) {
+                  <span class="badge-pending-mini" title="Reservas pendientes por atender">
+                    {{ pendingReservations() > 99 ? '99+' : pendingReservations() }}
+                  </span>
+                }
+
+                <i 
+                  class="bi bi-chevron-down chevron-icon" 
+                  [class.rotated]="isPackageExpanded(pkg.id)"
+                ></i>
+              </div>
+            </button>
+
+            <!-- Submenú de Módulos (Animado y Colapsable) -->
+            <div class="package-body-wrapper" [class.open]="isPackageExpanded(pkg.id)">
+              <div class="package-body">
+                <ul class="submenu-list">
+                  @for (module of pkg.modules; track module.route) {
+                    <li class="submenu-item">
+                      <a
+                        [routerLink]="module.route"
+                        routerLinkActive="active"
+                        [routerLinkActiveOptions]="{ exact: module.route === '/dashboard' }"
+                        (click)="onModuleClick()"
+                        class="submenu-link"
+                      >
+                        <i class="bi" [ngClass]="module.icon"></i>
+                        <span class="module-label">{{ module.label }}</span>
+
+                        <!-- Badge de reservas en módulo específico -->
+                        @if (module.route === '/reservas' && pendingReservations() > 0) {
+                          <span class="badge-pending">{{ pendingReservations() > 99 ? '99+' : pendingReservations() }}</span>
+                        }
+                      </a>
+                    </li>
+                  }
+                </ul>
+              </div>
+            </div>
+          </div>
         }
-      </ul>
+      </div>
     }
+  </div>
+
+  <!-- ── Footer con resumen ─────────────────────────────────────────────── -->
+  <div class="side-nav-footer">
+    <div class="footer-stats">
+      <i class="bi bi-layers text-accent"></i>
+      <span>{{ visiblePackages().length }} Subsistemas · {{ totalModulesCount() }} Módulos</span>
+    </div>
   </div>
 </aside>

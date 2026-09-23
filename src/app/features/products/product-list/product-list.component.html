@@ -122,7 +122,7 @@
                     <div class="product-item-cell">
                       <div class="product-thumb-wrapper">
                         @if (prod.imagen_url) {
-                          <img [src]="prod.imagen_url" [alt]="prod.nombre" class="product-thumb-img" (error)="prod.imagen_url = ''" />
+                          <img [src]="getImageUrl(prod.imagen_url)" [alt]="prod.nombre" class="product-thumb-img" (error)="prod.imagen_url = ''" />
                         } @else {
                           <div class="product-thumb-placeholder">
                             <i class="bi bi-image"></i>
