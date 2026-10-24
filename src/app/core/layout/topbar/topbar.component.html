@@ -4,6 +4,19 @@
       <img src="/logo.png" alt="FICCT STORE" class="brand-logo-topbar-img" />
       <span class="brand-name">FICCT STORE</span>
     </a>
+
+    @if (currentSub(); as sub) {
+      <a routerLink="/empresa/suscripcion" class="tenant-topbar-badge" [title]="'Empresa: ' + sub.tenant.nombre + ' (' + sub.plan.nombre + ')'">
+        <i class="bi bi-building-check"></i>
+        <span class="tenant-topbar-name">{{ sub.tenant.nombre }}</span>
+        <span class="plan-pill" [class.pro]="sub.plan.codigo === 'PROFESIONAL'">{{ sub.plan.codigo }}</span>
+      </a>
+    } @else if (currentUser()?.tenant_name) {
+      <a routerLink="/empresa/suscripcion" class="tenant-topbar-badge">
+        <i class="bi bi-building"></i>
+        <span class="tenant-topbar-name">{{ currentUser()?.tenant_name }}</span>
+      </a>
+    }
   </div>
 
   <div class="topbar-right">
@@ -24,6 +37,32 @@
       <i class="bi bi-mic-fill"></i>
       <span class="d-none d-md-inline ms-1" style="font-size: 0.8rem; font-weight: 600;">Reportes IA</span>
     </a>
+
+    <!-- Offline & Sync Status Indicator Button -->
+    <button 
+      type="button"
+      (click)="openSyncModal()" 
+      class="btn-sync-status"
+      [class.online]="isOnline()"
+      [class.offline]="!isOnline()"
+      [class.has-pending]="pendingCount() > 0"
+      [title]="isOnline() ? (pendingCount() > 0 ? pendingCount() + ' operaciones pendientes por sincronizar' : 'En línea (Conectado al servidor)') : 'Modo Offline: Operaciones guardadas en IndexedDB'">
+      <span class="status-dot"></span>
+      <span class="status-label d-none d-sm-inline">
+        @if (isSyncing()) {
+          Sincronizando...
+        } @else if (!isOnline()) {
+          Offline ({{ pendingCount() }})
+        } @else if (pendingCount() > 0) {
+          Sync ({{ pendingCount() }})
+        } @else {
+          En Línea
+        }
+      </span>
+      @if (pendingCount() > 0 && !isSyncing()) {
+        <span class="pending-pill">{{ pendingCount() }}</span>
+      }
+    </button>
 
     <!-- Dark Mode Toggle -->
     <button (click)="onToggleDark()" class="btn-icon btn-dark-toggle" [title]="isDark() ? 'Modo claro' : 'Modo oscuro'">
@@ -57,3 +96,7 @@
     </button>
   </div>
 </header>
+
+@if (showSyncModal()) {
+  <app-offline-sync-modal (closed)="closeSyncModal()"></app-offline-sync-modal>
+}

@@ -195,3 +195,117 @@
   }
 }
 
+/* Tenant Topbar Badge */
+.tenant-topbar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 9999px;
+  color: var(--text-main, #334155);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  max-width: 280px;
+}
+
+:host-context(.dark) .tenant-topbar-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+.tenant-topbar-badge:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.tenant-topbar-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.plan-pill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plan-pill.pro {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+}
+
+@media (max-width: 768px) {
+  .tenant-topbar-badge {
+    display: none;
+  }
+}
+
+/* Offline & Sync Status Indicator Button */
+.btn-sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main, #f8fafc);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.2s);
+}
+
+.btn-sync-status:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #94a3b8;
+}
+
+.btn-sync-status.online .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.btn-sync-status.offline .status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.btn-sync-status.has-pending .status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.pending-pill {
+  font-size: 0.7rem;
+  background: #f59e0b;
+  color: #0f172a;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+
+

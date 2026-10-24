@@ -7,9 +7,14 @@ import { BranchService } from '../../../core/services/branch.service';
 import { ProductService } from '../../../core/services/product.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import { PayPalService } from '../../../core/services/paypal.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { NetworkStatusService } from '../../../core/services/network-status.service';
+import { OfflineStorageService } from '../../../core/services/offline-storage.service';
+import { SyncQueueService } from '../../../core/services/sync-queue.service';
 import { Branch } from '../../../core/models/branch.model';
 import { Sale, PaymentMethod } from '../../../core/models/sale.model';
 import { Reservation } from '../../../core/models/reservation.model';
+import { OfflineLocalOperation } from '../../../core/models/sync.model';
 import { HasPermissionDirective } from '../../../core/directives/has-permission.directive';
 
 interface CartItem {
@@ -46,6 +51,10 @@ export class PosComponent implements OnInit {
   private productService = inject(ProductService);
   private reservationService = inject(ReservationService);
   private paypalService = inject(PayPalService);
+  private authService = inject(AuthService);
+  networkStatus = inject(NetworkStatusService);
+  offlineStorage = inject(OfflineStorageService);
+  syncQueue = inject(SyncQueueService);
 
   branches = signal<Branch[]>([]);
   selectedBranchId = signal<string>('');
@@ -89,40 +98,59 @@ export class PosComponent implements OnInit {
     this.branchService.getBranches(true).subscribe({
       next: (bList) => {
         this.branches.set(bList);
+        this.offlineStorage.cacheBranches(bList);
         if (bList.length > 0) {
           this.selectedBranchId.set(bList[0].id);
           this.loadBranchReservations();
+        }
+      },
+      error: async () => {
+        // Fallback offline: Cargar sucursales cacheadas en IndexedDB
+        const cached = await this.offlineStorage.getCachedBranches();
+        if (cached && cached.length > 0) {
+          this.branches.set(cached);
+          this.selectedBranchId.set(cached[0].id);
         }
       }
     });
 
     this.productService.getProducts().subscribe({
       next: (pList) => {
-        const items: VariantCatalogItem[] = [];
-        pList.forEach((p) => {
-          if (p.variantes) {
-            p.variantes.forEach((v) => {
-              const precio = Number(p.precio_base) + Number(v.precio_extra || 0);
-              items.push({
-                id: v.id,
-                productoNombre: p.nombre,
-                sku: v.sku,
-                talla: v.talla,
-                color: v.color,
-                precio: precio,
-                categoriaNombre: p.categoria?.nombre
-              });
-            });
-          }
-        });
-        this.catalog.set(items);
-        this.filterCatalog('');
+        this.offlineStorage.cacheProducts(pList);
+        this.populateCatalog(pList);
         this.isLoading.set(false);
       },
-      error: () => {
+      error: async () => {
+        // Fallback offline: Cargar catálogo cacheado en IndexedDB
+        const cached = await this.offlineStorage.getCachedProducts();
+        if (cached && cached.length > 0) {
+          this.populateCatalog(cached);
+        }
         this.isLoading.set(false);
       }
     });
+  }
+
+  private populateCatalog(pList: any[]): void {
+    const items: VariantCatalogItem[] = [];
+    pList.forEach((p) => {
+      if (p.variantes) {
+        p.variantes.forEach((v: any) => {
+          const precio = Number(p.precio_base) + Number(v.precio_extra || 0);
+          items.push({
+            id: v.id,
+            productoNombre: p.nombre,
+            sku: v.sku,
+            talla: v.talla,
+            color: v.color,
+            precio: precio,
+            categoriaNombre: p.categoria?.nombre
+          });
+        });
+      }
+    });
+    this.catalog.set(items);
+    this.filterCatalog(this.searchTerm());
   }
 
   onBranchChange(branchId: string): void {
@@ -366,6 +394,68 @@ export class PosComponent implements OnInit {
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
+
+    // ── MODO OFFLINE FIRST (RNF04 / RNF05): REGISTRO EN INDEXEDDB ──
+    if (!this.networkStatus.isOnline()) {
+      const clientOpId = crypto.randomUUID();
+      const total = this.getTotal();
+      const recibido = Number(this.montoRecibido);
+      const cambio = Math.max(0, recibido - total);
+      const branch = this.branches().find(b => b.id === this.selectedBranchId());
+
+      const offlineOp: OfflineLocalOperation = {
+        client_operation_id: clientOpId,
+        operation_type: 'VENTA_CONTADO_OFFLINE',
+        sucursal_id: this.selectedBranchId(),
+        cajero_id: this.authService.currentUser()?.id,
+        fecha_local: new Date().toISOString(),
+        items: this.cart().map(item => ({
+          variante_id: item.varianteId,
+          cantidad: item.cantidad,
+          precio_unitario: item.precioUnitario
+        })),
+        monto_total: total,
+        monto_efectivo_recibido: recibido,
+        cambio_entregado: cambio,
+        metodo_pago: this.paymentMethod,
+        notas: this.notaVenta || 'Venta registrada en modo offline PWA',
+        local_status: 'LOCAL_PENDIENTE',
+        items_summary: this.cart().map(i => `${i.cantidad}x ${i.productoNombre} (${i.talla})`).join(', ')
+      };
+
+      this.syncQueue.queueOfflineSale(offlineOp);
+
+      // Comprobante provisional offline para entrega en mostrador
+      const provisionalSale: any = {
+        id: clientOpId,
+        numero_recibo: `OFFLINE-${clientOpId.slice(0, 8).toUpperCase()}`,
+        tipo: 'PRESENCIAL',
+        estado: 'COMPLETADA',
+        monto_total: total,
+        monto_recibido: recibido,
+        cambio: cambio,
+        metodo_pago: this.paymentMethod,
+        sucursal_nombre: branch ? branch.nombre : 'Sucursal Local',
+        sucursal_ciudad: branch ? branch.ciudad : 'Local',
+        nota: '[MODO OFFLINE PWA] Guardada en IndexedDB. Se sincronizará automáticamente al reconectar.',
+        created_at: new Date().toISOString(),
+        detalles: this.cart().map(item => ({
+          id: item.varianteId,
+          producto_nombre: item.productoNombre,
+          talla: item.talla,
+          color: item.color,
+          cantidad: item.cantidad,
+          precio_unitario: item.precioUnitario,
+          subtotal: item.cantidad * item.precioUnitario
+        }))
+      };
+
+      this.isSubmitting.set(false);
+      this.completedSale.set(provisionalSale);
+      this.showReceiptModal.set(true);
+      this.clearCart();
+      return;
+    }
 
     const payload = {
       sucursal_id: this.selectedBranchId(),

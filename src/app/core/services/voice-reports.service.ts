@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { VoiceReportQueryRequest, VoiceReportQueryResponse } from '../models/voice-report.model';
+import { VoiceReportQueryRequest, VoiceReportQueryResponse, VoiceReportExcelExportRequest } from '../models/voice-report.model';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -20,6 +20,26 @@ export class VoiceReportsService {
     };
     return this.http.post<VoiceReportQueryResponse>(`${this.API_URL}/query`, payload);
   }
+
+  exportToExcel(request: VoiceReportExcelExportRequest): Observable<Blob> {
+    return this.http.post(`${this.API_URL}/export-excel`, request, {
+      responseType: 'blob'
+    });
+  }
+
+  downloadExcelBlob(blob: Blob, fileName?: string): void {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const finalName = fileName || `reporte_ia_${timestamp}.xlsx`;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
 
   exportToPdf(report: VoiceReportQueryResponse): void {
     if (!report || !report.columnas || report.columnas.length === 0) return;

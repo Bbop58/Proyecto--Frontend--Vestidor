@@ -60,6 +60,10 @@ export const routes: Routes = [
         data: { permission: 'sucursales.list' }
       },
       {
+        path: 'empresa/suscripcion',
+        loadComponent: () => import('./features/subscription/subscription-detail/subscription-detail.component').then((m) => m.SubscriptionDetailComponent)
+      },
+      {
         path: 'categorias',
         loadComponent: () => import('./features/categories/category-list/category-list.component').then((m) => m.CategoryListComponent),
         canActivate: [permissionGuard],
@@ -144,11 +148,30 @@ export const routes: Routes = [
         data: { permission: 'ventas.reports' }
       },
       {
+        path: 'ventas/cambios',
+        loadComponent: () => import('./features/sales/product-exchange/product-exchange.component').then((m) => m.ProductExchangeComponent),
+        canActivate: [permissionGuard],
+        data: { permission: 'ventas.create' }
+      },
+      {
         path: 'reportes-ia',
         loadComponent: () => import('./features/voice-reports/voice-reports.component').then((m) => m.VoiceReportsComponent),
         canActivate: [permissionGuard],
         data: { permission: 'ventas.reports' }
       },
+      {
+        path: 'reportes-voz',
+        redirectTo: 'reportes-ia',
+        pathMatch: 'full'
+      },
+      {
+        path: 'analitica',
+        loadComponent: () => import('./features/analytics/analytics-dashboard/analytics-dashboard.component').then((m) => m.AnalyticsDashboardComponent),
+        canActivate: [permissionGuard],
+        data: { permission: 'ventas.reports' }
+      },
+
+
       {
         path: 'perfil',
         loadComponent: () => import('./features/profile/profile.component').then((m) => m.ProfileComponent)

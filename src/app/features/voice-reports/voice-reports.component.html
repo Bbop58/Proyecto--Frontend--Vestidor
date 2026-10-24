@@ -84,11 +84,33 @@
       </button>
     </div>
 
-    <!-- Chips de Sugerencias Rápidas -->
-    <div class="suggestions-wrapper">
-      <span class="suggestions-label"><i class="bi bi-lightbulb me-1"></i> Sugerencias:</span>
+    <!-- Chips de Reportes Clave del Examen Parcial -->
+    <div class="exam-chips-wrapper">
+      <div class="exam-chips-title">
+        <i class="bi bi-star-fill text-warning me-1"></i>
+        <span>Reportes Clave del Examen Parcial (1 Clic):</span>
+      </div>
       <div class="chips-list">
-        @for (sug of suggestions; track sug) {
+        @for (item of examSuggestions; track item.query) {
+          <button
+            type="button"
+            class="suggestion-chip exam-chip"
+            (click)="useSuggestion(item.query)"
+            [disabled]="isLoading()"
+          >
+            <span class="exam-chip-badge">{{ item.badge }}</span>
+            <i class="bi {{ item.icon }} me-1"></i>
+            {{ item.title }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Chips de Sugerencias Adicionales -->
+    <div class="suggestions-wrapper mt-3">
+      <span class="suggestions-label"><i class="bi bi-lightbulb me-1"></i> Otras consultas:</span>
+      <div class="chips-list">
+        @for (sug of otherSuggestions; track sug) {
           <button
             type="button"
             class="suggestion-chip"
@@ -128,6 +150,16 @@
         <div class="export-actions">
           <button
             type="button"
+            class="btn btn-export-excel"
+            (click)="exportExcel()"
+            [disabled]="isExportingExcel()"
+            title="Exportar a libro de cálculo Excel (.xlsx) con estilos y fórmulas"
+          >
+            <i class="bi" [ngClass]="isExportingExcel() ? 'bi-hourglass-split' : 'bi-file-earmark-excel-fill'"></i>
+            <span class="ms-1">{{ isExportingExcel() ? 'Generando...' : 'Exportar a Excel (.xlsx)' }}</span>
+          </button>
+          <button
+            type="button"
             class="btn btn-export-pdf"
             (click)="exportPdf()"
             title="Exportar a documento PDF"
@@ -144,6 +176,7 @@
           </button>
         </div>
       </div>
+
 
       <!-- Barra de Metadatos y Toggle SQL -->
       <div class="results-metadata">

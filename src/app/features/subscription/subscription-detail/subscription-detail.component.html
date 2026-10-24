@@ -1,0 +1,299 @@
+<div class="subscription-container">
+  <!-- Top Navigation & Header -->
+  <div class="header-section">
+    <div>
+      <div class="page-badge">
+        <i class="bi bi-cloud-check-fill"></i> SaaS Multitenancy & Suscripciones
+      </div>
+      <h1 class="page-title">Estado de Suscripción Empresarial</h1>
+      <p class="page-subtitle">
+        Gestión de cuotas, límites de sucursales y características avanzadas de tu empresa en FICCT STORE Cloud.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="loadData()" [disabled]="isLoading()">
+        <i class="bi bi-arrow-clockwise" [class.spin]="isLoading()"></i> Actualizar Estado
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Banner -->
+  @if (actionMessage(); as msg) {
+    <div class="alert" [ngClass]="msg.type === 'success' ? 'alert-success' : 'alert-danger'">
+      <i class="bi" [ngClass]="msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'"></i>
+      <span>{{ msg.text }}</span>
+    </div>
+  }
+
+  @if (currentSub(); as sub) {
+    <!-- Main Overview Card -->
+    <div class="overview-grid">
+      <!-- Tenant & Plan Card -->
+      <div class="glass-card main-info-card">
+        <div class="tenant-header">
+          <div class="tenant-avatar">
+            <i class="bi bi-building"></i>
+          </div>
+          <div class="tenant-details">
+            <div class="tenant-badges">
+              <span class="tenant-pill">{{ sub.tenant.slug }}</span>
+              <span class="status-pill active">
+                <span class="pulse-dot"></span> {{ sub.estado }}
+              </span>
+            </div>
+            <h2 class="tenant-name">{{ sub.tenant.nombre }}</h2>
+            <div class="tenant-meta">
+              <span><i class="bi bi-card-text"></i> NIT: {{ sub.tenant.nit_rut }}</span>
+              @if (sub.tenant.telefono) {
+                <span><i class="bi bi-telephone"></i> {{ sub.tenant.telefono }}</span>
+              }
+              @if (sub.tenant.email_contacto) {
+                <span><i class="bi bi-envelope"></i> {{ sub.tenant.email_contacto }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="plan-hero-banner" [class.pro]="sub.plan.codigo === 'PROFESIONAL'">
+          <div class="banner-left">
+            <span class="plan-category">Plan Actual</span>
+            <h3 class="plan-name">{{ sub.plan.nombre }}</h3>
+            <p class="plan-desc">{{ sub.plan.descripcion }}</p>
+          </div>
+          <div class="banner-price">
+            <span class="price-val">{{ sub.plan.precio_mensual_bob | number:'1.2-2' }} <small>Bs.</small></span>
+            <span class="price-cycle">/ mes</span>
+          </div>
+        </div>
+
+        <div class="subscription-dates">
+          <div class="date-item">
+            <span class="label">Fecha Inicio:</span>
+            <span class="val">{{ sub.fecha_inicio | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div class="date-item">
+            <span class="label">Próxima Renovación:</span>
+            <span class="val">{{ sub.fecha_vencimiento | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div class="date-item">
+            <span class="label">Tiempo Restante:</span>
+            <span class="val highlight">{{ sub.dias_restantes }} días</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quota & Branch Consumption Card -->
+      <div class="glass-card quota-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-pie-chart-fill"></i> Consumo de Sucursales
+          </h3>
+          <span class="quota-badge" [class.limit-reached]="sub.sucursales_usadas >= sub.sucursales_maximas">
+            {{ sub.sucursales_usadas }} / {{ sub.sucursales_maximas }} activas
+          </span>
+        </div>
+
+        <p class="quota-desc">
+          Límite de sucursales físicas habilitadas para facturación e inventario según tu plan.
+        </p>
+
+        <!-- Progress bar -->
+        <div class="progress-wrapper">
+          <div class="progress-bar-container">
+            <div 
+              class="progress-bar-fill" 
+              [style.width.%]="sub.porcentaje_sucursales_usadas"
+              [class.warning]="sub.porcentaje_sucursales_usadas >= 70 && sub.porcentaje_sucursales_usadas < 100"
+              [class.danger]="sub.porcentaje_sucursales_usadas >= 100"
+            ></div>
+          </div>
+          <div class="progress-labels">
+            <span>{{ sub.porcentaje_sucursales_usadas | number:'1.0-0' }}% de capacidad ocupada</span>
+            <span>Disponibles: <strong>{{ sub.sucursales_disponibles }}</strong></span>
+          </div>
+        </div>
+
+        <!-- Limit Alert if reached -->
+        @if (sub.sucursales_usadas >= sub.sucursales_maximas) {
+          <div class="quota-alert">
+            <i class="bi bi-exclamation-octagon-fill"></i>
+            <div>
+              <strong>Límite de Sucursales Alcanzado</strong>
+              <p>Tu empresa ha alcanzado el límite máximo de {{ sub.sucursales_maximas }} sucursales. Para crear nuevas tiendas sin errores 400, actualiza al Plan Profesional.</p>
+            </div>
+          </div>
+        }
+
+        <!-- Features summary list -->
+        <div class="features-summary">
+          <div class="feature-item" [class.enabled]="true">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Ventas POS & Facturación Electrónica</span>
+          </div>
+          <div class="feature-item" [class.enabled]="true">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Control de Stock y Tallas/Colores</span>
+          </div>
+          <div class="feature-item" [class.enabled]="sub.permite_reportes_ia" [class.disabled]="!sub.permite_reportes_ia">
+            <i class="bi" [ngClass]="sub.permite_reportes_ia ? 'bi-check-circle-fill text-success' : 'bi-lock-fill text-muted'"></i>
+            <span>Reportes con Inteligencia Artificial y Voz</span>
+            @if (!sub.permite_reportes_ia) {
+              <span class="badge-locked">Requiere Pro</span>
+            }
+          </div>
+          <div class="feature-item" [class.enabled]="sub.plan.codigo === 'PROFESIONAL'" [class.disabled]="sub.plan.codigo !== 'PROFESIONAL'">
+            <i class="bi" [ngClass]="sub.plan.codigo === 'PROFESIONAL' ? 'bi-check-circle-fill text-success' : 'bi-lock-fill text-muted'"></i>
+            <span>Analítica Predictiva & Machine Learning</span>
+            @if (sub.plan.codigo !== 'PROFESIONAL') {
+              <span class="badge-locked">Requiere Pro</span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Matrix & Live Simulator -->
+    <div class="comparison-section">
+      <div class="section-title-box">
+        <h2 class="section-title">Planes Disponibles para tu Empresa</h2>
+        <p class="section-subtitle">
+          Puedes simular y cambiar de plan en tiempo real durante la defensa para demostrar el aislamiento y la liberación de cuotas.
+        </p>
+      </div>
+
+      <div class="plans-grid">
+        <!-- Plan Básico Card -->
+        <div class="plan-card glass-card" [class.current-active]="sub.plan.codigo === 'BASICO'">
+          @if (sub.plan.codigo === 'BASICO') {
+            <div class="active-ribbon">PLAN ACTIVO</div>
+          }
+          <div class="plan-card-header">
+            <div class="plan-icon basic">
+              <i class="bi bi-shop"></i>
+            </div>
+            <div>
+              <h3 class="plan-title">Plan Básico</h3>
+              <p class="plan-tagline">Para pequeñas tiendas y boutiques locales</p>
+            </div>
+          </div>
+
+          <div class="plan-price-box">
+            <span class="price-number">199.00</span>
+            <span class="price-currency">Bs. / mes</span>
+          </div>
+
+          <ul class="plan-specs-list">
+            <li>
+              <i class="bi bi-check2 text-success"></i>
+              <span><strong>Hasta 2 Sucursales</strong> activas simultáneas</span>
+            </li>
+            <li>
+              <i class="bi bi-check2 text-success"></i>
+              <span>Inventario, Variantes y Precios</span>
+            </li>
+            <li>
+              <i class="bi bi-check2 text-success"></i>
+              <span>Ventas en Caja (Efectivo, Tarjeta, QR)</span>
+            </li>
+            <li>
+              <i class="bi bi-check2 text-success"></i>
+              <span>Cambio de Prendas y Registro de Auditoría</span>
+            </li>
+            <li class="restricted">
+              <i class="bi bi-x-circle text-danger"></i>
+              <span>Sin Reportes por Voz / IA Gemini (HTTP 403)</span>
+            </li>
+            <li class="restricted">
+              <i class="bi bi-x-circle text-danger"></i>
+              <span>Sin Analítica Predictiva Avanzada</span>
+            </li>
+          </ul>
+
+          <div class="plan-card-footer">
+            @if (sub.plan.codigo === 'BASICO') {
+              <button class="btn btn-current" disabled>
+                <i class="bi bi-check-circle"></i> Plan Actualmente Asignado
+              </button>
+            } @else {
+              <button 
+                class="btn btn-outline-warning" 
+                (click)="onChangePlan('BASICO')" 
+                [disabled]="isLoading()"
+              >
+                Cambiar a Plan Básico (Downgrade)
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Plan Profesional Card -->
+        <div class="plan-card glass-card pro-card" [class.current-active]="sub.plan.codigo === 'PROFESIONAL'">
+          @if (sub.plan.codigo === 'PROFESIONAL') {
+            <div class="active-ribbon pro">PLAN ACTIVO</div>
+          } @else {
+            <div class="recommended-badge">RECOMENDADO</div>
+          }
+
+          <div class="plan-card-header">
+            <div class="plan-icon pro">
+              <i class="bi bi-rocket-takeoff-fill"></i>
+            </div>
+            <div>
+              <h3 class="plan-title">Plan Profesional</h3>
+              <p class="plan-tagline">Para empresas en expansión con tecnología de Inteligencia Artificial</p>
+            </div>
+          </div>
+
+          <div class="plan-price-box">
+            <span class="price-number">499.00</span>
+            <span class="price-currency">Bs. / mes</span>
+          </div>
+
+          <ul class="plan-specs-list">
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span><strong>Hasta 10 Sucursales</strong> activas en red</span>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span><strong>Reportes Inteligentes por Voz (IA)</strong> ilimitados</span>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span><strong>Analítica Predictiva y Machine Learning</strong></span>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span>Exportación Automatizada a Microsoft Excel</span>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span>Aislamiento Lógico Multitenant Completo</span>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span>Soporte Prioritario y Respaldo Continuo</span>
+            </li>
+          </ul>
+
+          <div class="plan-card-footer">
+            @if (sub.plan.codigo === 'PROFESIONAL') {
+              <button class="btn btn-current pro" disabled>
+                <i class="bi bi-check2-all"></i> Plan Actualmente Asignado
+              </button>
+            } @else {
+              <button 
+                class="btn btn-upgrade-pro" 
+                (click)="onChangePlan('PROFESIONAL')" 
+                [disabled]="isLoading()"
+              >
+                <i class="bi bi-lightning-charge-fill"></i> Actualizar a Plan Profesional (Upgrade)
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -66,6 +66,11 @@ export const NAV_PACKAGES: NavPackage[] = [
         permission: 'sucursales.list'
       },
       {
+        label: 'Suscripción & Plan',
+        icon: 'bi-cloud-check',
+        route: '/empresa/suscripcion'
+      },
+      {
         label: 'Categorías',
         icon: 'bi-tags',
         route: '/categorias',
@@ -114,9 +119,16 @@ export const NAV_PACKAGES: NavPackage[] = [
         icon: 'bi-mic-fill',
         route: '/reportes-ia',
         permission: 'ventas.reports'
+      },
+      {
+        label: 'Analítica Machine Learning',
+        icon: 'bi-cpu-fill',
+        route: '/analitica',
+        permission: 'ventas.reports'
       }
     ]
   },
+
   {
     id: 'inventario-logistica',
     name: 'Inventario y Logística',
@@ -165,6 +177,12 @@ export const NAV_PACKAGES: NavPackage[] = [
         icon: 'bi-receipt',
         route: '/ventas',
         permission: 'ventas.list'
+      },
+      {
+        label: 'Cambio de Prendas',
+        icon: 'bi-arrow-left-right',
+        route: '/ventas/cambios',
+        permission: 'ventas.create'
       },
       {
         label: 'Reportes de Ventas',

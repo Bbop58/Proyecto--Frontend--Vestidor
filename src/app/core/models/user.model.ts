@@ -8,6 +8,8 @@ export interface User {
   is_verified: boolean;
   role?: Role;
   permissions?: string[];
+  tenant_id?: string;
+  tenant_name?: string;
   created_at: string;
   updated_at: string;
 }

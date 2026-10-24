@@ -18,18 +18,50 @@ export class VoiceReportsComponent {
 
   queryText = signal<string>('');
   isLoading = signal<boolean>(false);
+  isExportingExcel = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   currentReport = signal<VoiceReportQueryResponse | null>(null);
   showSql = signal<boolean>(false);
 
-  suggestions: string[] = [
-    'Top 5 productos más vendidos',
+  examSuggestions = [
+    {
+      badge: 'R1',
+      title: 'Ventas por Sucursal',
+      query: 'Ventas totales agrupadas por sucursal',
+      icon: 'bi-shop'
+    },
+    {
+      badge: 'R2',
+      title: 'Top 10 Prendas del Mes',
+      query: 'Top 10 productos más vendidos del mes con SKU, talla, color, unidades e ingresos',
+      icon: 'bi-trophy'
+    },
+    {
+      badge: 'R3',
+      title: 'Ventas por Semana',
+      query: 'Gráfico de ventas por semana con total de ingresos y pedidos',
+      icon: 'bi-graph-up'
+    },
+    {
+      badge: 'R4',
+      title: 'Ingresos por Categoría',
+      query: 'Comparativa de ingresos por categorías',
+      icon: 'bi-pie-chart'
+    },
+    {
+      badge: 'R4b',
+      title: 'Menor Existencia (Crítico)',
+      query: 'Prendas con menor nivel de existencia',
+      icon: 'bi-exclamation-octagon'
+    }
+  ];
+
+  otherSuggestions: string[] = [
     'Clientes con mayor total de compras',
-    'Productos con stock bajo o agotado',
-    'Ventas totales agrupadas por sucursal',
     'Ingresos agrupados por método de pago',
     'Últimas 10 ventas completadas'
   ];
+
 
   constructor() {
     // Sincronizar la transcripción en vivo del micrófono con el input
@@ -101,7 +133,33 @@ export class VoiceReportsComponent {
     }
   }
 
+  exportExcel(): void {
+    const rep = this.currentReport();
+    if (!rep || !rep.columnas || rep.columnas.length === 0) return;
+
+    this.isExportingExcel.set(true);
+    this.errorMessage.set(null);
+
+    this.reportService.exportToExcel({
+      pregunta: rep.pregunta,
+      interpretacion: rep.interpretacion,
+      columnas: rep.columnas,
+      filas: rep.filas
+    }).subscribe({
+      next: (blob) => {
+        this.isExportingExcel.set(false);
+        this.reportService.downloadExcelBlob(blob);
+      },
+      error: (err) => {
+        this.isExportingExcel.set(false);
+        console.error('Error al exportar a Excel:', err);
+        this.errorMessage.set('Error al generar el archivo Excel en el servidor.');
+      }
+    });
+  }
+
   exportCsv(): void {
+
     const rep = this.currentReport();
     if (rep) {
       this.reportService.exportToCsv(rep);

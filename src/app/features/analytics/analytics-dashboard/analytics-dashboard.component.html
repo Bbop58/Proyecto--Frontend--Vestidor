@@ -1,0 +1,517 @@
+<div class="analytics-container">
+  <!-- ── Encabezado Principal ── -->
+  <div class="page-header glass-card">
+    <div class="header-content">
+      <div class="header-icon-wrapper">
+        <i class="bi bi-cpu-fill"></i>
+      </div>
+      <div>
+        <h1 class="page-title">Módulo de Analítica con Machine Learning</h1>
+        <p class="page-subtitle">
+          Modelos predictivos supervisados y de agrupamiento no supervisado entrenados en tiempo real sobre transacciones y clientes.
+        </p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button
+        type="button"
+        class="btn-retrain"
+        (click)="retrainModels()"
+        [disabled]="isRetraining() || isLoading()"
+        title="Ejecutar re-entrenamiento completo de los modelos de IA"
+      >
+        <i class="bi" [ngClass]="isRetraining() ? 'bi-arrow-repeat spin' : 'bi-lightning-charge-fill'"></i>
+        <span class="ms-1">{{ isRetraining() ? 'Entrenando Algoritmos...' : 'Re-entrenar Modelos ML' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas de Estado -->
+  @if (successMessage()) {
+    <div class="alert alert-success custom-alert" role="alert">
+      <i class="bi bi-check-circle-fill me-2"></i>
+      <span>{{ successMessage() }}</span>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="alert alert-danger custom-alert" role="alert">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <!-- ── Barra de Navegación por Pestañas ── -->
+  <div class="tabs-nav-wrapper">
+    <button
+      type="button"
+      class="nav-tab-btn"
+      [class.active]="activeTab() === 'forecast'"
+      (click)="activeTab.set('forecast')"
+    >
+      <i class="bi bi-graph-up-arrow me-2"></i>
+      <span>Previsión de Demanda (Supervisado)</span>
+    </button>
+    <button
+      type="button"
+      class="nav-tab-btn"
+      [class.active]="activeTab() === 'clusters'"
+      (click)="activeTab.set('clusters')"
+    >
+      <i class="bi bi-pie-chart-fill me-2"></i>
+      <span>Segmentación RFM (K-Means)</span>
+    </button>
+    <button
+      type="button"
+      class="nav-tab-btn"
+      [class.active]="activeTab() === 'simulator'"
+      (click)="activeTab.set('simulator')"
+    >
+      <i class="bi bi-sliders me-2"></i>
+      <span>Simulador Predictivo</span>
+    </button>
+  </div>
+
+  <!-- ── Loading State ── -->
+  @if (isLoading()) {
+    <div class="loading-box glass-card">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="loading-text mt-3">Cargando modelos e inferencias de Machine Learning...</p>
+    </div>
+  }
+
+  <!-- ── TAB 1: PREVISIÓN DE DEMANDA DE VENTAS (SUPERVISADO) ── -->
+  @if (!isLoading() && activeTab() === 'forecast' && forecastData(); as fc) {
+    <div class="tab-content-wrapper">
+      <!-- Tarjetas de Métricas Estadísticas -->
+      <div class="metrics-grid">
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Coeficiente R²</span>
+            <span class="badge-tag bg-success-light">Precisión Alta</span>
+          </div>
+          <div class="metric-value text-success">
+            {{ fc.metricas.r2_score | number: '1.3-3' }}
+          </div>
+          <p class="metric-desc">Explica el {{ (fc.metricas.r2_score * 100) | number: '1.1-1' }}% de la varianza histórica</p>
+        </div>
+
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Error RMSE</span>
+            <span class="badge-tag bg-info-light">Desviación</span>
+          </div>
+          <div class="metric-value text-info">
+            Bs. {{ fc.metricas.rmse | number: '1.0-0' }}
+          </div>
+          <p class="metric-desc">Raíz del error cuadrático medio en Bolivianos</p>
+        </div>
+
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Error MAE</span>
+            <span class="badge-tag bg-warning-light">Absoluto</span>
+          </div>
+          <div class="metric-value text-warning">
+            Bs. {{ fc.metricas.mae | number: '1.0-0' }}
+          </div>
+          <p class="metric-desc">Error absoluto medio promedio por estimación</p>
+        </div>
+
+        <div class="metric-card glass-card highlight-card">
+          <div class="metric-header">
+            <span class="metric-label">Proyección Próximo Mes</span>
+            <span class="badge-tag" [ngClass]="fc.crecimiento_proyectado_pct >= 0 ? 'bg-success-light' : 'bg-danger-light'">
+              {{ fc.crecimiento_proyectado_pct >= 0 ? '+' : '' }}{{ fc.crecimiento_proyectado_pct }}%
+            </span>
+          </div>
+          <div class="metric-value text-primary">
+            Bs. {{ fc.total_proyectado_mes_bs | number: '1.2-2' }}
+          </div>
+          <p class="metric-desc">Demanda estimada para las siguientes 4 semanas</p>
+        </div>
+      </div>
+
+      <!-- Gráfico de Serie Temporal (SVG) -->
+      <div class="chart-card glass-card mt-4">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Curva de Demanda: Ventas Reales vs Pronóstico del Modelo</h3>
+            <p class="chart-subtitle">{{ fc.resumen_ejecutivo }}</p>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot real"></span> Ventas Reales</span>
+            <span class="legend-item"><span class="legend-dot pred"></span> Pronóstico ML (Random Forest)</span>
+          </div>
+        </div>
+
+        <div class="svg-wrapper">
+          <svg viewBox="0 0 650 260" class="forecast-svg">
+            <!-- Gridlines -->
+            <line x1="50" y1="30" x2="600" y2="30" class="gridline" />
+            <line x1="50" y1="90" x2="600" y2="90" class="gridline" />
+            <line x1="50" y1="150" x2="600" y2="150" class="gridline" />
+            <line x1="50" y1="210" x2="600" y2="210" class="gridline" />
+
+            <!-- Línea de Pronóstico (Verde Esmeralda) -->
+            <polyline
+              [attr.points]="getPolylinePoints('pred')"
+              class="polyline-pred"
+            />
+
+            <!-- Línea de Ventas Reales (Azul Sólido) -->
+            <polyline
+              [attr.points]="getPolylinePoints('real')"
+              class="polyline-real"
+            />
+
+            <!-- Puntos Interactivos -->
+            @for (pt of fc.serie_temporal; track pt.semana_numero; let idx = $index) {
+              <!-- Punto Pronóstico -->
+              <circle
+                [attr.cx]="getSvgX(idx, fc.serie_temporal.length)"
+                [attr.cy]="getSvgY(pt.demanda_proyectada_bs, getMaxSales())"
+                r="4.5"
+                class="point-pred"
+                [class.projected]="pt.es_proyeccion"
+                (mouseenter)="hoveredForecastPoint.set(pt)"
+                (mouseleave)="hoveredForecastPoint.set(null)"
+              />
+
+              <!-- Punto Real (si existe) -->
+              @if (pt.ventas_reales_bs !== null) {
+                <circle
+                  [attr.cx]="getSvgX(idx, fc.serie_temporal.length)"
+                  [attr.cy]="getSvgY(pt.ventas_reales_bs, getMaxSales())"
+                  r="4"
+                  class="point-real"
+                  (mouseenter)="hoveredForecastPoint.set(pt)"
+                  (mouseleave)="hoveredForecastPoint.set(null)"
+                />
+              }
+
+              <!-- Etiquetas Eje X -->
+              <text
+                [attr.x]="getSvgX(idx, fc.serie_temporal.length)"
+                y="245"
+                class="axis-label"
+              >
+                S{{ pt.semana_numero }}
+              </text>
+            }
+          </svg>
+
+          <!-- Tooltip Flotante -->
+          @if (hoveredForecastPoint(); as p) {
+            <div class="chart-tooltip">
+              <strong>{{ p.periodo }}</strong>
+              @if (p.ventas_reales_bs !== null) {
+                <div>Ventas Reales: <span>Bs. {{ p.ventas_reales_bs | number: '1.2-2' }}</span></div>
+              }
+              <div>Pronóstico ML: <span>Bs. {{ p.demanda_proyectada_bs | number: '1.2-2' }}</span></div>
+              <div>Unidades Estimadas: <span>{{ p.unidades_estimadas }} prendas</span></div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Importancia de Características del Modelo -->
+      <div class="features-card glass-card mt-4">
+        <h3 class="chart-title mb-1"><i class="bi bi-bar-chart-steps text-primary me-2"></i>Variables con Mayor Peso Predictivo (Feature Importance)</h3>
+        <p class="chart-subtitle mb-3">Pesos relativos asignados por los árboles de decisión en la predicción de ventas:</p>
+        <div class="features-list">
+          @for (f of fc.metricas.importancia_caracteristicas; track f.feature) {
+            <div class="feature-row">
+              <span class="feature-name">{{ f.feature }}</span>
+              <div class="progress-wrapper">
+                <div class="progress-bar-fill" [style.width.%]="f.importance_pct"></div>
+              </div>
+              <span class="feature-pct">{{ f.importance_pct }}%</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── TAB 2: SEGMENTACIÓN DE CLIENTES (K-MEANS / RFM) ── -->
+  @if (!isLoading() && activeTab() === 'clusters' && segmentsData(); as seg) {
+    <div class="tab-content-wrapper">
+      <!-- Tarjetas de Métricas No Supervisadas -->
+      <div class="metrics-grid">
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Silhouette Score</span>
+            <span class="badge-tag bg-success-light">Separación Óptima</span>
+          </div>
+          <div class="metric-value text-success">
+            {{ seg.metricas.silhouette_score | number: '1.3-3' }}
+          </div>
+          <p class="metric-desc">Valida la cohesión interna y separación de clusters (>0.50)</p>
+        </div>
+
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Inercia WSS</span>
+            <span class="badge-tag bg-info-light">K-Means++</span>
+          </div>
+          <div class="metric-value text-info">
+            {{ seg.metricas.inercia_wss | number: '1.0-0' }}
+          </div>
+          <p class="metric-desc">Suma de distancias al cuadrado al centroide</p>
+        </div>
+
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Segmentos K</span>
+            <span class="badge-tag bg-warning-light">Clusters</span>
+          </div>
+          <div class="metric-value text-warning">
+            {{ seg.metricas.n_clusters }} Grupos
+          </div>
+          <p class="metric-desc">Arquetipos de comportamiento de compra descubiertos</p>
+        </div>
+
+        <div class="metric-card glass-card">
+          <div class="metric-header">
+            <span class="metric-label">Base Analizada</span>
+            <span class="badge-tag bg-primary-light">Muestra</span>
+          </div>
+          <div class="metric-value text-primary">
+            {{ seg.metricas.total_clientes_analizados }}
+          </div>
+          <p class="metric-desc">Clientes procesados en el espacio vectorial RFM</p>
+        </div>
+      </div>
+
+      <!-- Gráfico 2D Scatter Plot de Clusters (SVG) -->
+      <div class="chart-card glass-card mt-4">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Mapa de Dispersión 2D: Frecuencia de Compras vs Gasto Total</h3>
+            <p class="chart-subtitle">{{ seg.resumen_ejecutivo }}</p>
+          </div>
+          <div class="chart-legend">
+            @for (c of seg.clusters; track c.cluster_id) {
+              <span class="legend-item">
+                <span class="legend-dot" [style.background-color]="c.color_hex"></span>
+                {{ c.nombre_segmento }}
+              </span>
+            }
+          </div>
+        </div>
+
+        <div class="svg-wrapper">
+          <svg viewBox="0 0 650 280" class="scatter-svg">
+            <!-- Gridlines Horizontales -->
+            <line x1="50" y1="30" x2="600" y2="30" class="gridline" />
+            <line x1="50" y1="100" x2="600" y2="100" class="gridline" />
+            <line x1="50" y1="170" x2="600" y2="170" class="gridline" />
+            <line x1="50" y1="240" x2="600" y2="240" class="gridline" />
+
+            <!-- Puntos de Clientes (Dispersión) -->
+            @for (pt of seg.puntos_muestra; track pt.cliente_id) {
+              <circle
+                [attr.cx]="getScatterX(pt.frecuencia_compras)"
+                [attr.cy]="getScatterY(pt.monto_total_bs)"
+                r="4.5"
+                [attr.fill]="getClusterColor(pt.cluster_id)"
+                class="scatter-point"
+                (mouseenter)="hoveredCustomer.set(pt)"
+                (mouseleave)="hoveredCustomer.set(null)"
+              />
+            }
+
+            <!-- Ejes -->
+            <text x="325" y="270" class="axis-title-center">Frecuencia de Compras (Número de Transacciones)</text>
+          </svg>
+
+          <!-- Tooltip Flotante del Cliente -->
+          @if (hoveredCustomer(); as cust) {
+            <div class="chart-tooltip">
+              <strong>{{ cust.nombre }}</strong> ({{ cust.cliente_id }})
+              <div>Segmento: <span [style.color]="getClusterColor(cust.cluster_id)">{{ cust.cluster_nombre }}</span></div>
+              <div>Gasto Acumulado: <span>Bs. {{ cust.monto_total_bs | number: '1.2-2' }}</span></div>
+              <div>Frecuencia: <span>{{ cust.frecuencia_compras }} compras</span></div>
+              <div>Recencia: <span>hace {{ cust.recencia_dias }} días</span></div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Tarjetas Detalladas de los 4 Clusters -->
+      <div class="clusters-cards-grid mt-4">
+        @for (c of seg.clusters; track c.cluster_id) {
+          <div class="cluster-card glass-card" [style.border-top-color]="c.color_hex">
+            <div class="cluster-card-header">
+              <span class="cluster-dot" [style.background-color]="c.color_hex"></span>
+              <h4 class="cluster-name">{{ c.nombre_segmento }}</h4>
+              <span class="cluster-pct">{{ c.porcentaje_total }}%</span>
+            </div>
+
+            <div class="cluster-stats">
+              <div class="stat-item">
+                <span class="stat-label">Total Clientes</span>
+                <span class="stat-val">{{ c.total_clientes }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Gasto Promedio</span>
+                <span class="stat-val">Bs. {{ c.gasto_promedio_bs | number: '1.0-0' }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Frecuencia Media</span>
+                <span class="stat-val">{{ c.frecuencia_promedio_compras }} pedidos</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Recencia Media</span>
+                <span class="stat-val">{{ c.recencia_promedio_dias }} días</span>
+              </div>
+            </div>
+
+            <div class="cluster-strategy">
+              <span class="strategy-title"><i class="bi bi-lightbulb text-warning me-1"></i>Estrategia Recomendada:</span>
+              <p class="strategy-text">{{ c.estrategia_recomendada }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── TAB 3: SIMULADOR PREDICTIVO INTERACTIVO ── -->
+  @if (!isLoading() && activeTab() === 'simulator') {
+    <div class="tab-content-wrapper">
+      <div class="simulator-layout">
+        <!-- Formulario de Parámetros -->
+        <div class="simulator-card glass-card">
+          <h3 class="chart-title mb-1"><i class="bi bi-sliders text-primary me-2"></i>Simulador de Demanda Personalizada</h3>
+          <p class="chart-subtitle mb-4">Ajusta las variables de entorno para predecir la demanda esperada en tiempo real:</p>
+
+          <form (ngSubmit)="runSimulation()" class="simulator-form">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Semana del Año (1 a 52)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="52"
+                  class="form-control"
+                  [(ngModel)]="simulatorRequest.semana_del_ano"
+                  name="semana"
+                  required
+                />
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Mes</label>
+                <select class="form-select" [(ngModel)]="simulatorRequest.mes" name="mes">
+                  <option [ngValue]="1">Enero</option>
+                  <option [ngValue]="2">Febrero</option>
+                  <option [ngValue]="3">Marzo</option>
+                  <option [ngValue]="4">Abril</option>
+                  <option [ngValue]="5">Mayo</option>
+                  <option [ngValue]="6">Junio</option>
+                  <option [ngValue]="7">Julio</option>
+                  <option [ngValue]="8">Agosto</option>
+                  <option [ngValue]="9">Septiembre</option>
+                  <option [ngValue]="10">Octubre</option>
+                  <option [ngValue]="11">Noviembre</option>
+                  <option [ngValue]="12">Diciembre</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Temporada</label>
+                <select class="form-select" [(ngModel)]="simulatorRequest.temporada" name="temporada">
+                  <option value="Verano">Verano</option>
+                  <option value="Otoño">Otoño</option>
+                  <option value="Invierno">Invierno</option>
+                  <option value="Primavera">Primavera</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Familia / Categoría</label>
+                <select class="form-select" [(ngModel)]="simulatorRequest.categoria_nombre" name="categoria">
+                  <option value="Poleras y Camisas">Poleras y Camisas</option>
+                  <option value="Pantalones y Jeans">Pantalones y Jeans</option>
+                  <option value="Chaquetas y Abrigos">Chaquetas y Abrigos</option>
+                  <option value="Vestidos y Faldas">Vestidos y Faldas</option>
+                  <option value="Calzados y Accesorios">Calzados y Accesorios</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Sucursal</label>
+                <select class="form-select" [(ngModel)]="simulatorRequest.sucursal_nombre" name="sucursal">
+                  <option value="Sucursal Central">Sucursal Central</option>
+                  <option value="Sucursal Equipetrol">Sucursal Equipetrol</option>
+                  <option value="Sucursal Sopocachi">Sucursal Sopocachi</option>
+                  <option value="Tienda Online">Tienda Online</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Ventas Semana Anterior (Bs.)</label>
+                <input
+                  type="number"
+                  step="500"
+                  class="form-control"
+                  [(ngModel)]="simulatorRequest.ventas_semana_anterior_bs"
+                  name="ventas_ant"
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="btn-execute-simulation mt-4" [disabled]="isSimulating()">
+              <i class="bi" [ngClass]="isSimulating() ? 'bi-arrow-repeat spin' : 'bi-cpu-fill'"></i>
+              <span class="ms-2">{{ isSimulating() ? 'Calculando Inferencia...' : 'Ejecutar Inferencia ML' }}</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Tarjeta de Resultados de la Simulación -->
+        <div class="simulator-result-card glass-card">
+          <h4 class="result-card-title">Resultado de la Predicción</h4>
+
+          @if (simulatorResult(); as res) {
+            <div class="prediction-output-box">
+              <span class="prediction-label">Demanda Proyectada Estimada</span>
+              <div class="prediction-main-value">
+                Bs. {{ res.demanda_proyectada_bs | number: '1.2-2' }}
+              </div>
+              <div class="prediction-units-badge">
+                <i class="bi bi-box-seam me-1"></i>
+                {{ res.unidades_estimadas }} unidades estimadas
+              </div>
+
+              <div class="confidence-interval-box mt-4">
+                <div class="ci-header">
+                  <span>Intervalo de Confianza (95%)</span>
+                </div>
+                <div class="ci-values">
+                  <span>Bs. {{ res.rango_confianza_inferior_bs | number: '1.0-0' }}</span>
+                  <span class="ci-line"></span>
+                  <span>Bs. {{ res.rango_confianza_superior_bs | number: '1.0-0' }}</span>
+                </div>
+              </div>
+
+              <div class="prediction-factors mt-4">
+                <span class="factors-label"><i class="bi bi-info-circle me-1"></i> Factores de ponderación:</span>
+                <ul>
+                  @for (fac of res.factores_principales; track fac) {
+                    <li>{{ fac }}</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          } @else {
+            <div class="empty-simulation-placeholder">
+              <i class="bi bi-lightning-charge text-muted display-4 mb-3"></i>
+              <p>Presiona <strong>"Ejecutar Inferencia ML"</strong> para simular el comportamiento de demanda con el modelo RandomForest.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

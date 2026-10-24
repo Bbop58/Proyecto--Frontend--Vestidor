@@ -1,0 +1,483 @@
+<div class="exchange-container">
+  <!-- Header con Tabs -->
+  <header class="exchange-header">
+    <div class="header-titles">
+      <div class="header-badge">
+        <span class="icon">🔄</span> Desafío IV - Política de Contingencia
+      </div>
+      <h1>Gestión de Cambios de Prendas</h1>
+      <p class="subtitle">
+        Sustitución de prendas de vestir por talla, color o modelo dentro de la ventana legal de 30 días con ajuste automático de inventario (Kardex).
+      </p>
+    </div>
+
+    <!-- Pestañas de Navegación -->
+    <div class="tab-pills">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'nuevo'"
+        (click)="activeTab.set('nuevo')">
+        <span>✨</span> Registrar Nuevo Cambio
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'historial'"
+        (click)="activeTab.set('historial')">
+        <span>📋</span> Historial de Cambios ({{ exchangesList().length }})
+      </button>
+    </div>
+  </header>
+
+  <!-- Mensajes Globales -->
+  @if (errorMessage()) {
+    <div class="alert alert-error">
+      <span class="alert-icon">⚠️</span>
+      <div class="alert-content">{{ errorMessage() }}</div>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <div class="alert-content">{{ successMessage() }}</div>
+    </div>
+  }
+
+  <!-- TAB 1: REGISTRAR NUEVO CAMBIO -->
+  @if (activeTab() === 'nuevo') {
+    <div class="exchange-flow-grid">
+      <!-- PASO 1: Búsqueda y Validación del Recibo -->
+      <section class="flow-card step-card">
+        <div class="card-header">
+          <div class="step-badge">Paso 1</div>
+          <h2>Validar Recibo de Venta</h2>
+        </div>
+
+        <div class="search-box">
+          <div class="input-with-button">
+            <span class="search-icon">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Ej. VTA-20261023-A1B2C3 o REC-..." 
+              [ngModel]="receiptQuery()" 
+              (ngModelChange)="receiptQuery.set($event)"
+              (keyup.enter)="onSearchReceipt()"
+            />
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              [disabled]="isVerifying() || !receiptQuery().trim()"
+              (click)="onSearchReceipt()">
+              @if (isVerifying()) {
+                <span class="spinner"></span> Verificando...
+              } @else {
+                Verificar Ticket
+              }
+            </button>
+          </div>
+          <span class="helper-text">Ingrese el código impreso en la factura o ticket del cliente.</span>
+        </div>
+
+        <!-- Resultados de la Validación del Recibo -->
+        @if (verificationResult(); as verif) {
+          <div class="receipt-status-card" [class.valid]="verif.valido" [class.invalid]="!verif.valido">
+            <div class="receipt-header-row">
+              <div class="receipt-info">
+                <span class="receipt-title">{{ verif.numero_recibo }}</span>
+                <span class="receipt-branch">📍 {{ verif.sucursal_nombre || 'Sucursal Central' }}</span>
+                <span class="receipt-client">👤 {{ verif.cliente_nombre || 'Cliente Casual' }}</span>
+              </div>
+              <div class="deadline-badge" [class.ok]="verif.dentro_del_plazo" [class.expired]="!verif.dentro_del_plazo">
+                @if (verif.dentro_del_plazo) {
+                  <span>🟢 Dentro del plazo: {{ verif.dias_transcurridos }} de {{ verif.plazo_maximo_dias }} días</span>
+                } @else {
+                  <span>🔴 Plazo vencido: {{ verif.dias_transcurridos }} días transcurridos</span>
+                }
+              </div>
+            </div>
+
+            @if (verif.valido) {
+              <!-- Tabla de prendas del recibo original -->
+              <div class="table-container">
+                <table class="receipt-items-table">
+                  <thead>
+                    <tr>
+                      <th>Prenda Adquirida</th>
+                      <th>Talla / Color</th>
+                      <th>SKU</th>
+                      <th>Comprados</th>
+                      <th>Disponibles para Cambio</th>
+                      <th>Precio Unit.</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of verif.items; track item.variante_id) {
+                      <tr [class.selected-row]="selectedItemToExchange()?.variante_id === item.variante_id">
+                        <td class="font-bold">{{ item.producto_nombre }}</td>
+                        <td>
+                          <span class="badge badge-talla">{{ item.talla }}</span>
+                          <span class="badge badge-color">{{ item.color }}</span>
+                        </td>
+                        <td class="text-mono">{{ item.sku }}</td>
+                        <td class="text-center">{{ item.cantidad_comprada }}</td>
+                        <td class="text-center">
+                          <span class="badge" [class.badge-success]="item.cantidad_disponible_cambio > 0" [class.badge-muted]="item.cantidad_disponible_cambio === 0">
+                            {{ item.cantidad_disponible_cambio }} disp.
+                          </span>
+                        </td>
+                        <td>Bs. {{ item.precio_unitario | number:'1.2-2' }}</td>
+                        <td>
+                          <button 
+                            type="button"
+                            class="btn-select"
+                            [disabled]="item.cantidad_disponible_cambio <= 0"
+                            (click)="selectItemForExchange(item)">
+                            @if (selectedItemToExchange()?.variante_id === item.variante_id) {
+                              Devolviendo ✓
+                            } @else {
+                              Seleccionar
+                            }
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- PASO 2: Selección de la Nueva Prenda (Entregada) -->
+      @if (selectedItemToExchange(); as itemDevuelto) {
+        <section class="flow-card step-card animate-fade-in">
+          <div class="card-header">
+            <div class="step-badge">Paso 2</div>
+            <h2>Seleccionar Prenda de Reemplazo</h2>
+          </div>
+
+          <div class="exchange-summary-banner">
+            <div class="summary-col">
+              <span class="label">Prenda a Devolver:</span>
+              <span class="value">{{ itemDevuelto.producto_nombre }} ({{ itemDevuelto.talla }} - {{ itemDevuelto.color }})</span>
+            </div>
+            <div class="summary-col">
+              <span class="label">Cantidad a Devolver:</span>
+              <div class="quantity-picker">
+                <input 
+                  type="number" 
+                  min="1" 
+                  [max]="itemDevuelto.cantidad_disponible_cambio" 
+                  [ngModel]="selectedQuantityToReturn()"
+                  (ngModelChange)="selectedQuantityToReturn.set($event)"
+                />
+                <span class="max-label">de {{ itemDevuelto.cantidad_disponible_cambio }}</span>
+              </div>
+            </div>
+            <div class="summary-col">
+              <span class="label">Valor Reintegrado:</span>
+              <span class="amount-badge">Bs. {{ calculateReturnAmount() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <!-- Selección en Catálogo -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label>1. Producto Sustituto del Catálogo:</label>
+              <select 
+                class="form-control" 
+                [ngModel]="selectedReplacementProductId()"
+                (ngModelChange)="onReplacementProductChange($event)">
+                <option value="">-- Seleccionar Producto --</option>
+                @for (prod of catalogProducts(); track prod.id) {
+                  <option [value]="prod.id">{{ prod.nombre }} (Bs. {{ prod.precio_base }})</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>2. Talla y Color a Entregar:</label>
+              <select 
+                class="form-control" 
+                [disabled]="!selectedReplacementProductId()"
+                (change)="onReplacementVariantChange($any($event.target).value)">
+                <option value="">-- Seleccionar Talla / Color --</option>
+                @for (v of productVariantsMap()[selectedReplacementProductId()] || []; track v.id) {
+                  <option [value]="v.id">
+                    Talla {{ v.talla }} - {{ v.color }} (SKU: {{ v.sku }}) @if (v.precio_extra > 0) { [+Bs. {{ v.precio_extra }}] }
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>3. Cantidad a Entregar:</label>
+              <input 
+                type="number" 
+                min="1" 
+                class="form-control" 
+                [ngModel]="selectedQuantityToDeliver()"
+                (ngModelChange)="selectedQuantityToDeliver.set($event)"
+              />
+            </div>
+          </div>
+
+          <!-- PASO 3: Justificación y Liquidación Económica -->
+          <div class="step-3-divider"></div>
+          <div class="card-header">
+            <div class="step-badge">Paso 3</div>
+            <h2>Motivo y Liquidación Económica</h2>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Motivo del Cambio:</label>
+              <select class="form-control" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)">
+                <option value="Cambio de talla">Cambio de talla</option>
+                <option value="Cambio de color">Cambio de color</option>
+                <option value="Prenda con falla o tara de fábrica">Prenda con falla o tara de fábrica</option>
+                <option value="Gusto o preferencia personal">Gusto o preferencia personal</option>
+                <option value="Regalo / No le quedó al destinatario">Regalo / No le quedó al destinatario</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Estado de la Prenda Recibida:</label>
+              <select class="form-control" [ngModel]="estadoPrenda()" (ngModelChange)="estadoPrenda.set($event)">
+                <option value="BUEN_ESTADO">En Buen Estado / Con Etiquetas</option>
+                <option value="CON_ETIQUETA">Con Etiqueta Original</option>
+                <option value="DEFECTO_FABRICA">Con Defecto de Fábrica (Pasa a Merma/Avería)</option>
+              </select>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Observaciones / Nota:</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                placeholder="Observaciones adicionales sobre el cambio..." 
+                [ngModel]="nota()" 
+                (ngModelChange)="nota.set($event)"
+              />
+            </div>
+          </div>
+
+          <!-- Balance Económico Final -->
+          <div class="balance-card">
+            <div class="balance-row">
+              <span>Monto Devuelto al Inventario:</span>
+              <span class="text-muted">Bs. {{ calculateReturnAmount() | number:'1.2-2' }}</span>
+            </div>
+            <div class="balance-row">
+              <span>Monto de la Nueva Prenda:</span>
+              <span class="text-muted">Bs. {{ calculateDeliverAmount() | number:'1.2-2' }}</span>
+            </div>
+            <div class="balance-divider"></div>
+            <div class="balance-row total-row">
+              <span>Diferencia Neta:</span>
+              <span class="total-diff" [class.client-pays]="calculateDifference() > 0" [class.store-pays]="calculateDifference() < 0">
+                @if (calculateDifference() > 0) {
+                  +Bs. {{ calculateDifference() | number:'1.2-2' }} (Cliente Paga Diferencia)
+                } @else if (calculateDifference() < 0) {
+                  -Bs. {{ (calculateDifference() * -1) | number:'1.2-2' }} (Saldo a Favor del Cliente)
+                } @else {
+                  Bs. 0.00 (Cambio Directo Equivalente)
+                }
+              </span>
+            </div>
+
+            @if (calculateDifference() > 0) {
+              <div class="form-group payment-method-selector">
+                <label>Método de Pago para la Diferencia:</label>
+                <div class="radio-pills">
+                  <label class="radio-pill" [class.selected]="metodoPagoDiferencia() === 'EFECTIVO'">
+                    <input type="radio" name="paymentDiff" value="EFECTIVO" [ngModel]="metodoPagoDiferencia()" (ngModelChange)="metodoPagoDiferencia.set($event)"/>
+                    💵 Efectivo
+                  </label>
+                  <label class="radio-pill" [class.selected]="metodoPagoDiferencia() === 'TARJETA'">
+                    <input type="radio" name="paymentDiff" value="TARJETA" [ngModel]="metodoPagoDiferencia()" (ngModelChange)="metodoPagoDiferencia.set($event)"/>
+                    💳 Tarjeta
+                  </label>
+                  <label class="radio-pill" [class.selected]="metodoPagoDiferencia() === 'QR'">
+                    <input type="radio" name="paymentDiff" value="QR" [ngModel]="metodoPagoDiferencia()" (ngModelChange)="metodoPagoDiferencia.set($event)"/>
+                    📱 QR
+                  </label>
+                </div>
+              </div>
+            }
+
+            <div class="submit-action-row">
+              <button 
+                type="button" 
+                class="btn btn-primary btn-large"
+                [disabled]="isSubmitting() || !selectedReplacementVariant()"
+                (click)="submitExchange()">
+                @if (isSubmitting()) {
+                  <span class="spinner"></span> Procesando Cambio en Kardex...
+                } @else {
+                  🔄 Confirmar Cambio y Emitir Comprobante
+                }
+              </button>
+            </div>
+          </div>
+        </section>
+      }
+    </div>
+  }
+
+  <!-- TAB 2: HISTORIAL DE CAMBIOS -->
+  @if (activeTab() === 'historial') {
+    <section class="flow-card history-card">
+      <div class="card-header">
+        <h2>Historial de Cambios Registrados</h2>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="loadExchanges()">
+          🔄 Actualizar
+        </button>
+      </div>
+
+      @if (isLoadingHistory()) {
+        <div class="loading-state">
+          <span class="spinner"></span> Cargando comprobantes de cambio...
+        </div>
+      } @else if (exchangesList().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📦</span>
+          <p>No se han registrado cambios de prendas de vestir aún.</p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table class="receipt-items-table">
+            <thead>
+              <tr>
+                <th>Código Comprobante</th>
+                <th>Recibo Original</th>
+                <th>Sucursal</th>
+                <th>Cajero</th>
+                <th>Fecha / Días</th>
+                <th>Motivo</th>
+                <th>Devuelto</th>
+                <th>Entregado</th>
+                <th>Diferencia</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of exchangesList(); track c.id) {
+                <tr>
+                  <td class="font-bold text-mono text-primary">{{ c.numero_cambio }}</td>
+                  <td class="text-mono">{{ c.numero_recibo_original }}</td>
+                  <td>{{ c.sucursal_nombre }}</td>
+                  <td>{{ c.cajero_nombre }}</td>
+                  <td>
+                    <div>{{ c.fecha_cambio | date:'dd/MM/yyyy HH:mm' }}</div>
+                    <small class="text-muted">A los {{ c.dias_transcurridos }} días</small>
+                  </td>
+                  <td>{{ c.motivo }}</td>
+                  <td>Bs. {{ c.monto_total_devuelto | number:'1.2-2' }}</td>
+                  <td>Bs. {{ c.monto_total_entregado | number:'1.2-2' }}</td>
+                  <td>
+                    <span class="badge" [class.badge-success]="c.diferencia === 0" [class.badge-warning]="c.diferencia > 0">
+                      Bs. {{ c.diferencia | number:'1.2-2' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button type="button" class="btn-detail" (click)="openExchangeDetail(c)">
+                      👁️ Comprobante
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- MODAL DE COMPROBANTE DE CAMBIO (PRINTABLE) -->
+  @if (showReceiptModal() && selectedExchangeDetail(); as cambio) {
+    <div class="modal-overlay" (click)="closeReceiptModal()">
+      <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Comprobante de Cambio de Prenda</h3>
+          <button type="button" class="btn-close" (click)="closeReceiptModal()">✕</button>
+        </div>
+
+        <div class="modal-body printable-receipt">
+          <div class="receipt-brand">
+            <div class="brand-name">FICCT STORE</div>
+            <div class="brand-subtitle">Moda & Retail Omnicanal</div>
+            <div class="receipt-type">COMPROBANTE DE CAMBIO / CANJE</div>
+            <div class="receipt-code">{{ cambio.numero_cambio }}</div>
+          </div>
+
+          <div class="receipt-meta">
+            <div><strong>Sucursal:</strong> {{ cambio.sucursal_nombre }}</div>
+            <div><strong>Recibo Original:</strong> {{ cambio.numero_recibo_original }}</div>
+            <div><strong>Fecha del Cambio:</strong> {{ cambio.fecha_cambio | date:'dd/MM/yyyy HH:mm:ss' }}</div>
+            <div><strong>Cajero Responsable:</strong> {{ cambio.cajero_nombre }}</div>
+            <div><strong>Cliente:</strong> {{ cambio.cliente_nombre }}</div>
+            <div><strong>Días transcurridos:</strong> {{ cambio.dias_transcurridos }} días (Plazo máx: 30 días)</div>
+            <div><strong>Motivo:</strong> {{ cambio.motivo }}</div>
+          </div>
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-items-section">
+            <h4>Prendas Involucradas:</h4>
+            @for (det of cambio.detalles; track det.id) {
+              <div class="exchange-item-row">
+                <div class="item-devuelto">
+                  <span class="tag tag-devuelto">DEVUELTO (-1)</span>
+                  <div class="item-title">{{ det.variante_devuelta_nombre }}</div>
+                  <div class="item-sub">Talla: {{ det.variante_devuelta_talla }} | Color: {{ det.variante_devuelta_color }} | SKU: {{ det.variante_devuelta_sku }}</div>
+                  <div class="item-price">Bs. {{ det.precio_unitario_devuelto | number:'1.2-2' }}</div>
+                </div>
+
+                <div class="exchange-arrow">➔</div>
+
+                <div class="item-entregado">
+                  <span class="tag tag-entregado">ENTREGADO (+1)</span>
+                  <div class="item-title">{{ det.variante_entregada_nombre }}</div>
+                  <div class="item-sub">Talla: {{ det.variante_entregada_talla }} | Color: {{ det.variante_entregada_color }} | SKU: {{ det.variante_entregada_sku }}</div>
+                  <div class="item-price">Bs. {{ det.precio_unitario_entregado | number:'1.2-2' }}</div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-totals">
+            <div class="row"><span>Monto Devuelto:</span><span>Bs. {{ cambio.monto_total_devuelto | number:'1.2-2' }}</span></div>
+            <div class="row"><span>Monto Entregado:</span><span>Bs. {{ cambio.monto_total_entregado | number:'1.2-2' }}</span></div>
+            <div class="row grand-total">
+              <span>Diferencia Abonada:</span>
+              <span>Bs. {{ cambio.diferencia | number:'1.2-2' }} ({{ cambio.metodo_pago_diferencia }})</span>
+            </div>
+          </div>
+
+          @if (cambio.nota) {
+            <div class="receipt-notes">
+              <strong>Nota:</strong> {{ cambio.nota }}
+            </div>
+          }
+
+          <div class="receipt-footer">
+            <p>Este documento certifica el cambio de prenda bajo la política de garantía de 30 días.</p>
+            <p>El stock ha sido regularizado en el sistema central de inventarios.</p>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeReceiptModal()">Cerrar</button>
+          <button type="button" class="btn btn-primary" (click)="printReceipt()">🖨️ Imprimir Comprobante</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

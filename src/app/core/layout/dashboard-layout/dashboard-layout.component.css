@@ -37,3 +37,48 @@
     padding: 0 0.5rem 1.5rem 0.5rem;
   }
 }
+
+/* Offline Global Banner */
+.offline-global-banner {
+  background: linear-gradient(90deg, #7f1d1d 0%, #991b1b 100%);
+  color: #fee2e2;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);
+  border-bottom: 1px solid rgba(254, 202, 202, 0.2);
+  margin: -0 -1rem 0 -1rem;
+  z-index: 1050;
+  animation: slideDown 0.3s ease;
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.banner-icon {
+  font-size: 1.15rem;
+  color: #f87171;
+  flex-shrink: 0;
+}
+
+.banner-badge {
+  background: #f59e0b;
+  color: #0f172a;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+

@@ -1,4 +1,16 @@
 <div class="layout-container">
+  @if (!isOnline()) {
+    <div class="offline-global-banner">
+      <div class="banner-left">
+        <i class="bi bi-wifi-off banner-icon"></i>
+        <span><strong>Modo Offline (PWA):</strong> Operando sin conexión al servidor central. Los catálogos se cargan desde el almacenamiento local IndexedDB. Las ventas y reservas se encolan para sincronización automática al recuperar red.</span>
+      </div>
+      @if (pendingCount() > 0) {
+        <span class="banner-badge">{{ pendingCount() }} operación(es) local(es) en cola</span>
+      }
+    </div>
+  }
+
   <app-topbar (toggleNav)="toggleNav()"></app-topbar>
 
   <main class="main-content">

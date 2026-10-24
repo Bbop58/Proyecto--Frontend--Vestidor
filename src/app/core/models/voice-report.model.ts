@@ -12,3 +12,11 @@ export interface VoiceReportQueryResponse {
   total_filas: number;
   tiempo_ms: number;
 }
+
+export interface VoiceReportExcelExportRequest {
+  pregunta: string;
+  interpretacion?: string;
+  columnas: string[];
+  filas: Record<string, any>[];
+}
+
